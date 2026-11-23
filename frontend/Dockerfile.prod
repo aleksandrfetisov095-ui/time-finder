@@ -1,0 +1,31 @@
+# ===== STAGE 1: Сборка проекта =====
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Копируем только файлы зависимостей (для кэширования)
+COPY package*.json ./
+
+# Устанавливаем зависимости
+RUN npm ci
+
+# Копируем исходный код
+COPY . .
+
+# Собираем проект (Vite создаст папку dist)
+RUN npm run build
+
+# ===== STAGE 2: Production с Nginx =====
+FROM nginx:stable-alpine AS production
+
+# Копируем собранные файлы из первого этапа
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Копируем конфиг nginx
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Открываем порт 80
+EXPOSE 80
+
+# Запускаем nginx
+CMD ["nginx", "-g", "daemon off;"]
